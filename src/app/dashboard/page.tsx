@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/utils/supabase/server";
-import DashboardClient from "./DashboardClient";
+import PortfolioClient from "./PortfolioClient";
 
 export const dynamic = "force-dynamic";
 
@@ -28,8 +28,9 @@ export default async function DashboardPage() {
 
   const trackedCodes = Array.from(new Set((myConfig ?? []).map((c) => c.instrument_code)));
 
-  // latest trading-day price per tracked instrument (for the recommendation flag)
-  const { data: latestPrices } = trackedCodes.length
+  // full trading-day price history for every tracked instrument (used for the recommendation flag
+  // and the per-instrument price history panel)
+  const { data: allPriceHistory } = trackedCodes.length
     ? await supabase
         .from("price_history")
         .select("*")
@@ -38,13 +39,13 @@ export default async function DashboardPage() {
         .order("date", { ascending: false })
     : { data: [] as any[] };
 
-  const latestByCode: Record<string, any> = {};
-  (latestPrices ?? []).forEach((row) => {
-    if (!latestByCode[row.instrument_code]) latestByCode[row.instrument_code] = row;
+  const historyByCode: Record<string, any[]> = {};
+  (allPriceHistory ?? []).forEach((row) => {
+    if (!historyByCode[row.instrument_code]) historyByCode[row.instrument_code] = [];
+    historyByCode[row.instrument_code].push(row);
   });
 
   // accrued amount per tracked (instrument, label) segment, computed server-side via the SQL function.
-  // each config row is now its own (instrument, label) combination, so we key accrual by the config row id.
   const accruedByConfigId: Record<string, number> = {};
   await Promise.all(
     (myConfig ?? []).map(async (cfg) => {
@@ -58,6 +59,13 @@ export default async function DashboardPage() {
     })
   );
 
+  // total invested per (instrument, label) combination, to show alongside each tracked row
+  const investedByKey: Record<string, number> = {};
+  (myInvestments ?? []).forEach((inv) => {
+    const key = `${inv.instrument_code}::${inv.entity_label ?? ""}`;
+    investedByKey[key] = (investedByKey[key] || 0) + Number(inv.amount || 0);
+  });
+
   const instrumentByCode: Record<string, any> = {};
   (allInstruments ?? []).forEach((i) => (instrumentByCode[i.code] = i));
 
@@ -65,14 +73,15 @@ export default async function DashboardPage() {
     ...cfg,
     instrument: instrumentByCode[cfg.instrument_code],
     accrued: accruedByConfigId[cfg.id] ?? 0,
-    lastPrice: latestByCode[cfg.instrument_code] ?? null,
+    invested: investedByKey[`${cfg.instrument_code}::${cfg.entity_label ?? ""}`] || 0,
+    lastPrice: historyByCode[cfg.instrument_code]?.[0] ?? null,
+    priceHistory: (historyByCode[cfg.instrument_code] ?? []).filter((r) => r.date >= cfg.start_date),
   }));
 
   return (
-    <DashboardClient
+    <PortfolioClient
       profile={profile}
       tracked={tracked}
-      allInstruments={allInstruments ?? []}
       entityLabels={myLabels ?? []}
       investments={myInvestments ?? []}
       today={today}
