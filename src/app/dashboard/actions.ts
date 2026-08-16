@@ -10,13 +10,19 @@ async function requireUser() {
   return { supabase, user };
 }
 
-export async function addTrackedInstrument(instrumentCode: string, startDate: string, dailyAmount: number) {
+export async function addTrackedInstrument(
+  instrumentCode: string,
+  startDate: string,
+  dailyAmount: number,
+  entityLabel: string | null
+) {
   const { supabase, user } = await requireUser();
   const { error } = await supabase.from("user_instrument_config").insert({
     user_id: user.id,
     instrument_code: instrumentCode,
     start_date: startDate,
     daily_amount: dailyAmount,
+    entity_label: entityLabel,
   });
   if (error) throw new Error(error.message);
   revalidatePath("/dashboard");
@@ -29,13 +35,19 @@ export async function removeTrackedInstrument(configId: string) {
   revalidatePath("/dashboard");
 }
 
-export async function changeDailyAmount(instrumentCode: string, effectiveDate: string, newAmount: number) {
+export async function changeDailyAmount(
+  instrumentCode: string,
+  effectiveDate: string,
+  newAmount: number,
+  entityLabel: string | null
+) {
   const { supabase, user } = await requireUser();
   const { error } = await supabase.from("user_instrument_config").insert({
     user_id: user.id,
     instrument_code: instrumentCode,
     start_date: effectiveDate,
     daily_amount: newAmount,
+    entity_label: entityLabel,
   });
   if (error) throw new Error(error.message);
   revalidatePath("/dashboard");
