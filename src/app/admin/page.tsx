@@ -17,16 +17,21 @@ export default async function AdminPage() {
   const [{ data: instruments }, { data: allProfiles }, { data: allConfig }] = await Promise.all([
     supabase.from("instruments").select("*").order("display_name"),
     supabase.from("profiles").select("*").order("created_at"),
-    supabase.from("user_instrument_config").select("user_id, instrument_code").lte("start_date", today).gte("end_date", today).eq("active", true),
+    supabase.from("user_instrument_config").select("user_id, instrument_code, entity_label").lte("start_date", today).gte("end_date", today).eq("active", true),
   ]);
 
-  // per-instrument tracker counts
+  // per-instrument tracker counts (distinct users, regardless of how many labels they track it under)
   const trackerCounts: Record<string, number> = {};
+  const trackerUsersByInstrument: Record<string, Set<string>> = {};
   (allConfig ?? []).forEach((row) => {
-    trackerCounts[row.instrument_code] = (trackerCounts[row.instrument_code] || 0) + 1;
+    if (!trackerUsersByInstrument[row.instrument_code]) trackerUsersByInstrument[row.instrument_code] = new Set();
+    trackerUsersByInstrument[row.instrument_code].add(row.user_id);
+  });
+  Object.entries(trackerUsersByInstrument).forEach(([code, userSet]) => {
+    trackerCounts[code] = userSet.size;
   });
 
-  // total accrued per user (sums across their currently-tracked instruments)
+  // total accrued per user (sums across their currently-tracked instrument+label segments)
   const accruedByUser: Record<string, number> = {};
   await Promise.all(
     (allConfig ?? []).map(async (row) => {
@@ -34,6 +39,7 @@ export default async function AdminPage() {
         p_user_id: row.user_id,
         p_instrument_code: row.instrument_code,
         p_as_of: today,
+        p_entity_label: row.entity_label,
       });
       accruedByUser[row.user_id] = (accruedByUser[row.user_id] || 0) + Number(data ?? 0);
     })
