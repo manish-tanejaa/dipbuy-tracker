@@ -55,7 +55,10 @@ export default function AdminClient({ instruments, trackerCounts, users, totalUs
             <div className="w-8 h-8 rounded-lg bg-ink flex items-center justify-center font-bold text-white">A</div>
             <span className="font-semibold">DipBuy Admin</span>
           </div>
-          <a href="/dashboard" className="text-sm text-brand-600 font-semibold">Back to dashboard</a>
+          <div className="flex items-center gap-4">
+            <a href="/admin/instruments" className="text-sm text-brand-600 font-semibold">Instrument breakdown</a>
+            <a href="/dashboard" className="text-sm text-brand-600 font-semibold">Back to dashboard</a>
+          </div>
         </div>
       </div>
 
