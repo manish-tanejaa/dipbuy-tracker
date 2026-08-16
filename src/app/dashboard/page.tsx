@@ -26,7 +26,7 @@ export default async function DashboardPage() {
       supabase.from("investments").select("*").eq("user_id", user.id).order("date", { ascending: false }),
     ]);
 
-  const trackedCodes = (myConfig ?? []).map((c) => c.instrument_code);
+  const trackedCodes = Array.from(new Set((myConfig ?? []).map((c) => c.instrument_code)));
 
   // latest trading-day price per tracked instrument (for the recommendation flag)
   const { data: latestPrices } = trackedCodes.length
@@ -43,16 +43,18 @@ export default async function DashboardPage() {
     if (!latestByCode[row.instrument_code]) latestByCode[row.instrument_code] = row;
   });
 
-  // accrued amount per tracked instrument, computed server-side via the SQL function
-  const accruedByCode: Record<string, number> = {};
+  // accrued amount per tracked (instrument, label) segment, computed server-side via the SQL function.
+  // each config row is now its own (instrument, label) combination, so we key accrual by the config row id.
+  const accruedByConfigId: Record<string, number> = {};
   await Promise.all(
-    trackedCodes.map(async (code) => {
+    (myConfig ?? []).map(async (cfg) => {
       const { data } = await supabase.rpc("fn_accrued_amount", {
         p_user_id: user.id,
-        p_instrument_code: code,
+        p_instrument_code: cfg.instrument_code,
         p_as_of: today,
+        p_entity_label: cfg.entity_label,
       });
-      accruedByCode[code] = Number(data ?? 0);
+      accruedByConfigId[cfg.id] = Number(data ?? 0);
     })
   );
 
@@ -62,17 +64,15 @@ export default async function DashboardPage() {
   const tracked = (myConfig ?? []).map((cfg) => ({
     ...cfg,
     instrument: instrumentByCode[cfg.instrument_code],
-    accrued: accruedByCode[cfg.instrument_code] ?? 0,
+    accrued: accruedByConfigId[cfg.id] ?? 0,
     lastPrice: latestByCode[cfg.instrument_code] ?? null,
   }));
-
-  const untracked = (allInstruments ?? []).filter((i) => !trackedCodes.includes(i.code));
 
   return (
     <DashboardClient
       profile={profile}
       tracked={tracked}
-      untracked={untracked}
+      allInstruments={allInstruments ?? []}
       entityLabels={myLabels ?? []}
       investments={myInvestments ?? []}
       today={today}
