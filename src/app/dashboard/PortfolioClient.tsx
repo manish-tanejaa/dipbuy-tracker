@@ -407,6 +407,8 @@ export default function PortfolioClient({ profile, tracked, entityLabels, invest
     return Array.from(s);
   }, [investedByLabel, accruedByLabel, entityLabels]);
 
+  const colCount = hasLabels ? 6 : 5;
+
   return (
     <div className="min-h-screen bg-paper">
       {/* top bar */}
@@ -451,16 +453,21 @@ export default function PortfolioClient({ profile, tracked, entityLabels, invest
             </p>
             <ol className="text-sm space-y-2 list-decimal list-inside">
               <li>
-                <span className="font-medium">Watch for the dip flag.</span> Each row below shows the last trading
-                day's price and % change. A row flagged 🟢 closed down — a sign it may be a good day to invest.
+                <span className="font-medium">Watch for the dip flag.</span> Each row shows the last trading day's
+                price with a ▼ green (closed down — a buying opportunity) or ▲ red (closed up) marker. Hover the
+                marker to see the date.
+              </li>
+              <li>
+                <span className="font-medium">Check the range.</span> The small bar under the price shows where
+                today's price sits between the lowest and highest price recorded since we started tracking it.
               </li>
               <li>
                 <span className="font-medium">Invest when ready.</span> Click Invest on any row to log that you've
                 deployed the accrued amount. This resets the accrual clock for that instrument.
               </li>
               <li>
-                <span className="font-medium">Check the history.</span> Click the date/price cell to expand a row and
-                see every trading day since you started tracking that instrument.
+                <span className="font-medium">Check the history.</span> Click the price to expand a row and see
+                every trading day since you started tracking that instrument.
               </li>
               <li>
                 <span className="font-medium">Totals by label.</span> If you use HUF or Trust labels, the table above
@@ -526,7 +533,6 @@ export default function PortfolioClient({ profile, tracked, entityLabels, invest
               <tr className="text-left text-muted border-b border-border">
                 <th className="py-2 pr-3">Instrument</th>
                 {hasLabels && <th className="py-2 pr-3">Label</th>}
-                <th className="py-2 pr-3">Rate</th>
                 <th className="py-2 pr-3">Last price</th>
                 <th className="py-2 pr-3 text-right">Accrued</th>
                 <th className="py-2 pr-3 text-right">Invested</th>
@@ -540,6 +546,7 @@ export default function PortfolioClient({ profile, tracked, entityLabels, invest
                   t={t}
                   today={today}
                   hasLabels={hasLabels}
+                  colSpan={colCount}
                   historyOpen={openHistoryId === t.id}
                   onToggleHistory={() => setOpenHistoryId(openHistoryId === t.id ? null : t.id)}
                   investOpen={openInvestId === t.id}
@@ -549,7 +556,7 @@ export default function PortfolioClient({ profile, tracked, entityLabels, invest
               ))}
               {tracked.length === 0 && (
                 <tr>
-                  <td colSpan={hasLabels ? 7 : 6} className="py-6 text-center text-muted">
+                  <td colSpan={colCount} className="py-6 text-center text-muted">
                     Not tracking anything yet — head to <a href="/dashboard/setup" className="text-brand-600 font-semibold">Setup</a> to add an instrument.
                   </td>
                 </tr>
@@ -562,10 +569,29 @@ export default function PortfolioClient({ profile, tracked, entityLabels, invest
   );
 }
 
-function TrackedRow({ t, today, hasLabels, historyOpen, onToggleHistory, investOpen, onToggleInvest, onDone }: any) {
+function RangeBar({ low, high, value }: { low?: number | null; high?: number | null; value?: number | null }) {
+  if (low == null || high == null || value == null) return null;
+  const pct = high > low ? Math.min(100, Math.max(0, ((value - low) / (high - low)) * 100)) : 50;
+  return (
+    <div className="mt-1.5 w-28" title={`Range since tracking began: ₹${Math.round(low)} – ₹${Math.round(high)}`}>
+      <div className="relative pt-1.5">
+        <div
+          className="absolute top-0 w-0 h-0 border-l-[4px] border-r-[4px] border-t-[5px] border-l-transparent border-r-transparent border-t-ink"
+          style={{ left: `calc(${pct}% - 4px)` }}
+        />
+        <div className="h-1 bg-border rounded-full" />
+      </div>
+      <div className="flex justify-between text-[10px] text-muted mt-0.5">
+        <span>₹{Math.round(low)}</span>
+        <span>₹{Math.round(high)}</span>
+      </div>
+    </div>
+  );
+}
+
+function TrackedRow({ t, today, hasLabels, colSpan, historyOpen, onToggleHistory, investOpen, onToggleInvest, onDone }: any) {
   const [busy, setBusy] = useState(false);
   const recommended = isRecommended(t);
-  const colSpan = hasLabels ? 7 : 6;
 
   async function handleInvest(formData: FormData) {
     setBusy(true);
@@ -583,20 +609,20 @@ function TrackedRow({ t, today, hasLabels, historyOpen, onToggleHistory, investO
       <tr className="border-b border-border last:border-0">
         <td className="py-3">{t.instrument?.display_name}</td>
         {hasLabels && <td className="py-3 text-muted">{labelName(t.entity_label)}</td>}
-        <td className="py-3 text-muted">{fmt(t.daily_amount)}/day</td>
         <td className="py-3">
-          <button className="text-left hover:underline" onClick={onToggleHistory} title="Show price history">
+          <button className="text-left" onClick={onToggleHistory} title="Click to see full price history">
             {t.lastPrice ? (
-              <span className="text-xs">
-                {t.lastPrice.date}:{" "}
-                {t.lastPrice.direction === "DOWN" ? (
-                  <span className="text-down font-medium">DOWN {t.lastPrice.change_pct}%</span>
-                ) : t.lastPrice.direction === "UP" ? (
-                  <span className="text-up font-medium">UP {t.lastPrice.change_pct}%</span>
-                ) : (
-                  <span className="text-muted">{t.lastPrice.day_type}</span>
-                )}
-              </span>
+              <>
+                <div className="flex items-center gap-1.5 text-sm font-medium" title={t.lastPrice.date}>
+                  <span>₹{t.lastPrice.price}</span>
+                  {t.lastPrice.direction === "DOWN" ? (
+                    <span className="text-up" aria-label="down">▼</span>
+                  ) : t.lastPrice.direction === "UP" ? (
+                    <span className="text-down" aria-label="up">▲</span>
+                  ) : null}
+                </div>
+                <RangeBar low={t.range?.low} high={t.range?.high} value={t.lastPrice.price} />
+              </>
             ) : (
               <span className="text-xs text-muted">no data</span>
             )}
@@ -648,7 +674,7 @@ function TrackedRow({ t, today, hasLabels, historyOpen, onToggleHistory, investO
                           <td className="py-1 pr-3">{row.date}</td>
                           <td className="py-1 pr-3 text-muted">{row.day_type}</td>
                           <td className="py-1 pr-3 text-right">{row.price != null ? `₹${row.price}` : "—"}</td>
-                          <td className={"py-1 pr-3 text-right font-medium " + (row.direction === "DOWN" ? "text-down" : row.direction === "UP" ? "text-up" : "text-muted")}>
+                          <td className={"py-1 pr-3 text-right font-medium " + (row.direction === "DOWN" ? "text-up" : row.direction === "UP" ? "text-down" : "text-muted")}>
                             {row.change_pct != null ? `${row.direction === "DOWN" ? "▼" : "▲"} ${row.change_pct}%` : "—"}
                           </td>
                         </tr>
