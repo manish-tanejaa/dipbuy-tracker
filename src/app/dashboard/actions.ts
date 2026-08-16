@@ -68,8 +68,11 @@ export async function invest(instrumentCode: string, amount: number, date: strin
 
 export async function addEntityLabel(label: string) {
   const { supabase, user } = await requireUser();
-  const { error } = await supabase.from("entity_labels").insert({ user_id: user.id, label });
-  if (error) throw new Error(error.message);
+  const trimmed = label.trim();
+  if (!trimmed) return;
+  const { error } = await supabase.from("entity_labels").insert({ user_id: user.id, label: trimmed });
+  // ignore "already exists" (unique user_id+label constraint) instead of crashing the page
+  if (error && error.code !== "23505") throw new Error(error.message);
   revalidatePath("/dashboard");
 }
 
