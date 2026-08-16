@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { createClient } from "@/utils/supabase/client";
 import {
   addTrackedInstrument,
   removeTrackedInstrument,
@@ -36,6 +37,9 @@ export default function DashboardClient({ profile, tracked, allInstruments, enti
   const [showStopTracking, setShowStopTracking] = useState(false);
   const [showEntities, setShowEntities] = useState(false);
   const [showGuide, setShowGuide] = useState(true);
+  const [showChangePassword, setShowChangePassword] = useState(false);
+  const [passwordMsg, setPasswordMsg] = useState<{ type: "ok" | "err"; text: string } | null>(null);
+  const [passwordBusy, setPasswordBusy] = useState(false);
   const [busy, setBusy] = useState(false);
 
   const selected = tracked.find((t: any) => t.id === selectedId);
@@ -137,6 +141,31 @@ export default function DashboardClient({ profile, tracked, allInstruments, enti
       router.refresh();
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function handleChangePassword(formData: FormData) {
+    setPasswordMsg(null);
+    const newPassword = String(formData.get("new_password") || "");
+    const confirmPassword = String(formData.get("confirm_password") || "");
+    if (newPassword.length < 6) {
+      setPasswordMsg({ type: "err", text: "Password must be at least 6 characters." });
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setPasswordMsg({ type: "err", text: "Passwords don't match." });
+      return;
+    }
+    setPasswordBusy(true);
+    try {
+      const supabase = createClient();
+      const { error } = await supabase.auth.updateUser({ password: newPassword });
+      if (error) throw error;
+      setPasswordMsg({ type: "ok", text: "Password updated." });
+    } catch (err: any) {
+      setPasswordMsg({ type: "err", text: err.message || "Something went wrong." });
+    } finally {
+      setPasswordBusy(false);
     }
   }
 
@@ -544,6 +573,33 @@ export default function DashboardClient({ profile, tracked, allInstruments, enti
                   <button className="btn-secondary" type="submit">Add label</button>
                 </form>
               </div>
+            )}
+          </div>
+
+          {/* change password */}
+          <div className="card p-5">
+            <button className="text-sm font-semibold flex items-center gap-2 w-full text-left" onClick={() => { setShowChangePassword(!showChangePassword); setPasswordMsg(null); }}>
+              {showChangePassword ? "▾" : "▸"} Change your password
+            </button>
+            {showChangePassword && (
+              <form action={handleChangePassword} className="mt-4 grid sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-medium text-muted block mb-1">New password</label>
+                  <input type="password" name="new_password" minLength={6} required />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-muted block mb-1">Confirm new password</label>
+                  <input type="password" name="confirm_password" minLength={6} required />
+                </div>
+                {passwordMsg && (
+                  <div className={"sm:col-span-2 text-sm rounded-lg px-3 py-2 border " + (passwordMsg.type === "ok" ? "text-brand-700 bg-brand-50 border-brand-100" : "text-down bg-red-50 border-red-100")}>
+                    {passwordMsg.text}
+                  </div>
+                )}
+                <div className="sm:col-span-2 flex justify-end">
+                  <button className="btn-primary" disabled={passwordBusy}>Update password</button>
+                </div>
+              </form>
             )}
           </div>
         </div>
