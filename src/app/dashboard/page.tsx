@@ -69,6 +69,15 @@ export default async function DashboardPage() {
   const instrumentByCode: Record<string, any> = {};
   (allInstruments ?? []).forEach((i) => (instrumentByCode[i.code] = i));
 
+  // 52-week-style range (best-effort over whatever trading-day history exists) per instrument
+  const rangeByCode: Record<string, { low: number; high: number }> = {};
+  Object.entries(historyByCode).forEach(([code, rows]) => {
+    const prices = rows.map((r) => Number(r.price)).filter((p) => !isNaN(p) && p != null);
+    if (prices.length) {
+      rangeByCode[code] = { low: Math.min(...prices), high: Math.max(...prices) };
+    }
+  });
+
   const tracked = (myConfig ?? []).map((cfg) => ({
     ...cfg,
     instrument: instrumentByCode[cfg.instrument_code],
@@ -76,6 +85,7 @@ export default async function DashboardPage() {
     invested: investedByKey[`${cfg.instrument_code}::${cfg.entity_label ?? ""}`] || 0,
     lastPrice: historyByCode[cfg.instrument_code]?.[0] ?? null,
     priceHistory: (historyByCode[cfg.instrument_code] ?? []).filter((r) => r.date >= cfg.start_date),
+    range: rangeByCode[cfg.instrument_code] ?? null,
   }));
 
   return (
