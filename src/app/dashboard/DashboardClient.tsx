@@ -35,6 +35,7 @@ export default function DashboardClient({ profile, tracked, allInstruments, enti
   const [showChangeAmount, setShowChangeAmount] = useState(false);
   const [showStopTracking, setShowStopTracking] = useState(false);
   const [showEntities, setShowEntities] = useState(false);
+  const [showGuide, setShowGuide] = useState(true);
   const [busy, setBusy] = useState(false);
 
   const selected = tracked.find((t: any) => t.id === selectedId);
@@ -153,6 +154,9 @@ export default function DashboardClient({ profile, tracked, allInstruments, enti
             {profile?.role === "admin" && (
               <a href="/admin" className="text-brand-600 font-semibold">Admin</a>
             )}
+            <button className="text-muted hover:text-ink" onClick={() => setShowGuide(!showGuide)}>
+              {showGuide ? "Hide guide" : "❓ How to use this"}
+            </button>
             <form action={async () => { await signOut(); router.push("/login"); router.refresh(); }}>
               <button className="text-muted hover:text-ink">Sign out</button>
             </form>
@@ -161,6 +165,55 @@ export default function DashboardClient({ profile, tracked, allInstruments, enti
       </div>
 
       <div className="max-w-5xl mx-auto px-6 py-8">
+        {/* how to use this — simple guide */}
+        {showGuide && (
+          <div className="card p-5 mb-6 bg-brand-50 border-brand-100">
+            <div className="flex items-start justify-between gap-4 mb-3">
+              <div className="text-sm font-semibold">How to use DipBuy</div>
+              <button className="text-xs text-muted hover:text-ink shrink-0" onClick={() => setShowGuide(false)}>
+                Hide
+              </button>
+            </div>
+            <p className="text-sm text-muted mb-3">
+              DipBuy helps you set aside a fixed amount every day for the instruments you want to keep buying on dips,
+              and reminds you when a good day to invest comes along. It doesn't move real money — it just tracks what
+              you've committed to and what you've actually deployed.
+            </p>
+            <ol className="text-sm space-y-2 list-decimal list-inside">
+              <li>
+                <span className="font-medium">Track an instrument.</span> Open "Track a new instrument" below, pick
+                one from the shared list, and set how much should accrue per day (e.g. ₹1,000/day). That amount adds
+                up daily whether or not you invest.
+              </li>
+              <li>
+                <span className="font-medium">Watch for the dip flag.</span> After each trading day, DipBuy checks
+                whether the instrument closed down. If it did, it's flagged 🟢 — a sign it may be a good day to
+                deploy your accrued amount. The "Total accrued" tile turns green when at least one tracked instrument
+                is flagged today, and red otherwise.
+              </li>
+              <li>
+                <span className="font-medium">Invest when ready.</span> Click Invest — from the "Total accrued" tile,
+                the instrument picker, or the tracked table — to log that you've deployed the accrued amount. This
+                resets the accrual clock for that instrument.
+              </li>
+              <li>
+                <span className="font-medium">Adjust anytime.</span> Use "Change daily amount" to update how much
+                accrues going forward (past amounts stay in your history), or "Stop tracking" to pause an instrument.
+              </li>
+              <li>
+                <span className="font-medium">Investing via an HUF or Trust?</span> Add a label under "Manage your
+                labels", then pick it whenever you track an instrument or invest. No separate login needed — every
+                total on this page splits automatically by label.
+              </li>
+              <li>
+                <span className="font-medium">Check your totals.</span> "Portfolio breakup" shows what's invested vs.
+                still accrued, in total and by label. "All tracked instruments" lists everything you're tracking with
+                its label, rate, and current accrued amount.
+              </li>
+            </ol>
+          </div>
+        )}
+
         {/* portfolio summary — clickable tiles */}
         <div className="grid grid-cols-3 gap-4 mb-4">
           <button
