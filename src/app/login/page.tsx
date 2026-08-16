@@ -10,7 +10,12 @@ export default function LoginPage() {
   const [mode, setMode] = useState<"login" | "signup">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [age, setAge] = useState("");
+  const [incomeRange, setIncomeRange] = useState("");
+  const [marketingConsent, setMarketingConsent] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
@@ -19,6 +24,12 @@ export default function LoginPage() {
     e.preventDefault();
     setError(null);
     setInfo(null);
+
+    if (mode === "signup" && password !== confirmPassword) {
+      setError("Passwords don't match.");
+      return;
+    }
+
     setLoading(true);
     try {
       if (mode === "login") {
@@ -30,7 +41,15 @@ export default function LoginPage() {
         const { error } = await supabase.auth.signUp({
           email,
           password,
-          options: { data: { display_name: displayName || email.split("@")[0] } },
+          options: {
+            data: {
+              display_name: displayName || email.split("@")[0],
+              phone,
+              age,
+              income_range: incomeRange,
+              marketing_consent: marketingConsent,
+            },
+          },
         });
         if (error) throw error;
         setInfo("Account created. If email confirmation is required, check your inbox — otherwise you're all set, log in below.");
@@ -77,14 +96,14 @@ export default function LoginPage() {
 
           <h2 className="text-2xl font-semibold mb-1">{mode === "login" ? "Welcome back" : "Create your account"}</h2>
           <p className="text-muted text-sm mb-6">
-            {mode === "login" ? "Log in to see your accrued pots and portfolio." : "No KYC, no paperwork — just an email and a password."}
+            {mode === "login" ? "Log in to see your accrued pots and portfolio." : "No KYC — just a few details to get you started."}
           </p>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             {mode === "signup" && (
               <div>
                 <label className="text-xs font-medium text-muted block mb-1">Your name</label>
-                <input type="text" value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder="e.g. Manish" />
+                <input type="text" required value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder="e.g. Manish" />
               </div>
             )}
             <div>
@@ -95,6 +114,48 @@ export default function LoginPage() {
               <label className="text-xs font-medium text-muted block mb-1">Password</label>
               <input type="password" required minLength={6} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" />
             </div>
+            {mode === "signup" && (
+              <>
+                <div>
+                  <label className="text-xs font-medium text-muted block mb-1">Confirm password</label>
+                  <input type="password" required minLength={6} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="••••••••" />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs font-medium text-muted block mb-1">Phone number</label>
+                    <input type="tel" required value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+91 98765 43210" />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-muted block mb-1">Age</label>
+                    <input type="number" required min={18} max={120} value={age} onChange={(e) => setAge(e.target.value)} placeholder="e.g. 32" />
+                  </div>
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-muted block mb-1">Annual income range</label>
+                  <select required value={incomeRange} onChange={(e) => setIncomeRange(e.target.value)}>
+                    <option value="" disabled>Select a range</option>
+                    <option value="Under ₹5 lakh">Under ₹5 lakh</option>
+                    <option value="₹5–10 lakh">₹5–10 lakh</option>
+                    <option value="₹10–25 lakh">₹10–25 lakh</option>
+                    <option value="₹25–50 lakh">₹25–50 lakh</option>
+                    <option value="₹50 lakh+">₹50 lakh+</option>
+                    <option value="Prefer not to say">Prefer not to say</option>
+                  </select>
+                </div>
+                <label className="flex items-start gap-2 text-xs text-muted">
+                  <input
+                    type="checkbox"
+                    checked={marketingConsent}
+                    onChange={(e) => setMarketingConsent(e.target.checked)}
+                    className="mt-0.5"
+                  />
+                  <span>
+                    It&apos;s okay to reach out to me by phone or email about relevant investment products and offers.
+                    You can change this later.
+                  </span>
+                </label>
+              </>
+            )}
 
             {error && <div className="text-sm text-down bg-red-50 border border-red-100 rounded-lg px-3 py-2">{error}</div>}
             {info && <div className="text-sm text-brand-700 bg-brand-50 border border-brand-100 rounded-lg px-3 py-2">{info}</div>}
