@@ -109,6 +109,10 @@ export default function AdminClient({ instruments, trackerCounts, users, totalUs
               <tr className="text-left text-muted border-b border-border">
                 <th className="py-2 pr-3">Name</th>
                 <th className="py-2 pr-3">Role</th>
+                <th className="py-2 pr-3">Phone</th>
+                <th className="py-2 pr-3">Age</th>
+                <th className="py-2 pr-3">Income range</th>
+                <th className="py-2 pr-3">OK to contact</th>
                 <th className="py-2 pr-3">Tracking</th>
                 <th className="py-2 pr-3 text-right">Total accrued</th>
               </tr>
@@ -127,6 +131,10 @@ export default function AdminClient({ instruments, trackerCounts, users, totalUs
                       <option value="admin">admin</option>
                     </select>
                   </td>
+                  <td className="py-3 text-muted">{u.phone || "—"}</td>
+                  <td className="py-3 text-muted">{u.age ?? "—"}</td>
+                  <td className="py-3 text-muted">{u.income_range || "—"}</td>
+                  <td className="py-3 text-muted">{u.marketing_consent ? "Yes" : "No"}</td>
                   <td className="py-3">{u.trackedCount} instruments</td>
                   <td className="py-3 text-right font-medium">{fmt(u.totalAccrued)}</td>
                 </tr>
